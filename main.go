@@ -69,9 +69,40 @@ func main() {
 	}
 }
 
+type HashData struct {
+	Hash  string
+	Count int
+}
+
 func ingestData(db *sql.DB, rc io.ReadCloser) error {
+	rd := bufio.NewReaderSize(rc, 4*1024*1024)
+
+	c := make(chan HashData, 10000)
+	go dbWriter(c, db)
+
+	for {
+		line, err := rd.ReadSlice(byte('\n'))
+		if err != nil {
+			if err == io.EOF {
+				return nil
+			}
+			return err
+		}
+		hData := HashData{
+			Hash: string(line[0:40]),
+		}
+		hData.Count, err = strconv.Atoi(string(line[41 : len(line)-2]))
+		if err != nil {
+			return err
+		}
+		c <- hData
+	}
+}
+
+func dbWriter(c chan HashData, db *sql.DB) {
 	var tx *sql.Tx
 	var stmt *sql.Stmt
+	count := 0
 
 	beginTrans := func() (err error) {
 		tx, err = db.Begin()
@@ -83,40 +114,29 @@ func ingestData(db *sql.DB, rc io.ReadCloser) error {
 	}
 	err := beginTrans()
 	if err != nil {
-		return err
+		fmt.Println(err)
+		return
 	}
 
-	rd := bufio.NewReaderSize(rc, 4*1024*1024)
-	count := 0
-	for {
-		line, err := rd.ReadSlice(byte('\n'))
-		if err != nil {
-			if err == io.EOF {
-				return nil
-			}
-			return err
-		}
-		hash := line[0:40]
-		countString := line[41 : len(line)-2]
-		countInt, err := strconv.Atoi(string(countString))
-		if err != nil {
-			return err
-		}
+	for data := range c {
 		// fmt.Println(string(hash), string(countString))
-		_, err = stmt.Exec(hash, countInt)
+		_, err = stmt.Exec(data.Hash, data.Count)
 		if err != nil {
-			return err
+			fmt.Println(err)
+			return
 		}
 		count++
-		if count%100000 == 0 {
+		if count%1000000 == 0 {
 			// Do it in batches
 			err = tx.Commit()
 			if err != nil {
-				return err
+				fmt.Println(err)
+				return
 			}
 			err = beginTrans()
 			if err != nil {
-				return err
+				fmt.Println(err)
+				return
 			}
 			fmt.Print(".")
 		}
