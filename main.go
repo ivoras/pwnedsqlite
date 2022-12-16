@@ -52,6 +52,13 @@ func main() {
 		}
 	}
 
+	// We want to look at the db as it's being generated
+	_, err = db.Exec("PRAGMA journal_mode=WAL;")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
 	for _, file := range r.File {
 		fmt.Println(file.Name)
 		if strings.HasSuffix(file.Name, ".txt") {
