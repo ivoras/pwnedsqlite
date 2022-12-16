@@ -84,7 +84,7 @@ type HashData struct {
 func ingestData(db *sql.DB, rc io.ReadCloser) error {
 	rd := bufio.NewReaderSize(rc, 4*1024*1024)
 
-	c := make(chan HashData, 10000)
+	c := make(chan HashData, 100000)
 	go dbWriter(c, db)
 
 	for {
@@ -135,6 +135,7 @@ func dbWriter(c chan HashData, db *sql.DB) {
 		count++
 		if count%1000000 == 0 {
 			// Do it in batches
+			//fmt.Print(".", len(c))
 			err = tx.Commit()
 			if err != nil {
 				fmt.Println(err)
