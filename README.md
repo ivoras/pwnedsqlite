@@ -31,7 +31,7 @@ CREATE TABLE hashes (hash TEXT, count INTEGER);
 CREATE INDEX hashesh_hash ON hashes(hash);"
 ```
 
-And the resulting SQLite database's size is 87 GB in size. That's over twice the size of the .txt file.
+And the resulting SQLite database's size is 87 GB in size (847100000 records). That's over twice the size of the .txt file.
 
 ## Decompressing on the fly
 
