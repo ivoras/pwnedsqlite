@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/bodgit/sevenzip"
@@ -78,7 +77,7 @@ func main() {
 
 type HashData struct {
 	Hash  string
-	Count int
+	Count string
 }
 
 func ingestData(db *sql.DB, rc io.ReadCloser) error {
@@ -96,9 +95,9 @@ func ingestData(db *sql.DB, rc io.ReadCloser) error {
 			return err
 		}
 		hData := HashData{
-			Hash: string(line[0:40]),
+			Hash:  string(line[0:40]),
+			Count: string(line[41 : len(line)-2]),
 		}
-		hData.Count, err = strconv.Atoi(string(line[41 : len(line)-2]))
 		if err != nil {
 			return err
 		}
