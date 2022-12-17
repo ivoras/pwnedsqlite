@@ -20,6 +20,8 @@ But you know what would be even more awesome? Doing it with a proper file format
 
 Sure, I could make my own B-tree engine, but why bother? There is an universal database format out there which everyone sane can use nowadays: SQLite. The sure-fire way to make the original performance goal must be to create an indexed SQLite table.
 
+# Importing data into SQLite
+
 ## Decompressing on the fly
 
 For some reason, I thought it a bit dirty to decompress the orginal file first, so I found a 7zip decompression library (`github.com/bodgit/sevenzip`) and used that to read data directly from the compressed archive. It has a really nice interface where the code to get a `ReaderCloser` the `.txt` file boiled down to:
