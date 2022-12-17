@@ -22,6 +22,17 @@ Sure, I could make my own B-tree engine, but why bother? There is an universal d
 
 # Importing data into SQLite
 
+Since we're going to use SQLite's query engine, the interesting bits here are getting data into SQLite.
+
+The schema is simple:
+
+```sql
+CREATE TABLE hashes (hash TEXT, count INTEGER);
+CREATE INDEX hashesh_hash ON hashes(hash);"
+```
+
+And the resulting SQLite database's size is 87 GB in size. That's over twice the size of the .txt file.
+
 ## Decompressing on the fly
 
 For some reason, I thought it a bit dirty to decompress the orginal file first, so I found a 7zip decompression library (`github.com/bodgit/sevenzip`) and used that to read data directly from the compressed archive. It has a really nice interface where the code to get a `ReaderCloser` the `.txt` file boiled down to:
@@ -97,11 +108,10 @@ func ingestData(db *sql.DB, rc io.ReadCloser) error {
                         }
                         return err
                 }
-                hData := HashData{
+                c <- HashData{
                         Hash: string(line[0:40]),
                         Hash: string(line[41 : len(line)-2]),
                 }
-                c <- hData
         }
 }
 ```
@@ -184,7 +194,7 @@ Immediately, I'm observing the process CPU utilisation jumping to about 165% CPU
 .46770.46770.84319.93540.45145.45145.91904.91904.43496.43496.90256.90256.41849.41849.88627.88627.40230.40230.
 ```
 
-Seems like we're on a right track. The channel is never entirely fool, and is often less than 50% full, so it SHOULD mean the decompressor and the SQLite code are parelellising nicely, right?
+Seems like we're on a right track. The channel is never entirely full, and is often less than 50% full, so it SHOULD mean the decompressor and the SQLite code are parelellising nicely, right?
 
 Wrong!
 
@@ -192,12 +202,22 @@ Wrong!
 elapsed time: 14.855751469s that's 336569.9816958886 recs/s
 ```
 
-Ouch. We did nothing for the performance, just managed to waste CPU cycles, memory and energy with the deep channel. Let's revert that optimisation.
+Ouch. We did nothing for the performance, just managed to waste CPU cycles, memory and energy with the deep channel. Let's revert that "optimisation".
 
+What next?
 
+SQLite works with strings, and I'm not sure prepared statements will have an impact. Let's try using just `fmt.Sprintf()` instead of prepared statements (which should usually NEVER be done, but let's say we trust this data).
 
+```
+-               _, err = stmt.Exec(data.Hash, data.Count)
++               _, err = db.Exec(fmt.Sprintf("INSERT INTO hashes(hash, count) VALUES ('%s', %s)", data.Hash, data.Count))
+```
 
+How's the performance now?
 
+```
+
+```
 
 # pwnedsqlite
 A Go tool which imports the Have I Been Pwned file of password hashes into a SQLite database on the fly, without decompressing it first.
