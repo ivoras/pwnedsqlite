@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/bodgit/sevenzip"
 	_ "github.com/mattn/go-sqlite3"
@@ -16,6 +17,7 @@ import (
 var inFilename = flag.String("i", "", "Input file name (7zip file from https://haveibeenpwned.com/Passwords)")
 var outFilename = flag.String("o", "pwned.sqlite", "Output filename SQLite database")
 var forceNewDb = flag.Bool("f", true, "Delete old SQLite output file before ingesting new data")
+var benchmarkMode = flag.Bool("b", false, "Benchmark mode")
 
 func main() {
 	flag.Parse()
@@ -110,6 +112,9 @@ func dbWriter(c chan HashData, db *sql.DB) {
 	var stmt *sql.Stmt
 	count := 0
 
+	startTime := time.Now()
+	const recordThreshold = 100000
+
 	beginTrans := func() (err error) {
 		tx, err = db.Begin()
 		if err != nil {
@@ -132,7 +137,7 @@ func dbWriter(c chan HashData, db *sql.DB) {
 			return
 		}
 		count++
-		if count%1000000 == 0 {
+		if count%recordThreshold == 0 {
 			// Do it in batches
 			//fmt.Print(".", len(c))
 			err = tx.Commit()
@@ -146,6 +151,11 @@ func dbWriter(c chan HashData, db *sql.DB) {
 				return
 			}
 			fmt.Print(".")
+			if *benchmarkMode && count >= 5*1000000 {
+				dur := time.Since(startTime)
+				fmt.Println("elapsed time:", dur, "that's", float64(count)/(dur.Seconds()), "recs/s")
+				os.Exit(0)
+			}
 		}
 	}
 }
